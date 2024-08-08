@@ -1,20 +1,21 @@
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
 public class StudentManagementSystem extends JFrame {
 
-    private List<Student> students = new ArrayList<>();
-    private List<Course> courses = new ArrayList<>();
+    private final List<Student> students = new ArrayList<>();
+    private final List<Course> courses = new ArrayList<>();
 
     private JComboBox<Student> assignGradeStudentComboBox;
     private JTable viewStudentsTable;
     private JTable viewCoursesTable;
+    private JTable viewEnrolledCoursesTable;
+    private JComboBox<Student> studentComboBox;
 
     public StudentManagementSystem() {
         setTitle("Student Management System");
@@ -87,8 +88,21 @@ public class StudentManagementSystem extends JFrame {
 
         int result = JOptionPane.showConfirmDialog(null, panel, "Add Student", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
-            addStudent(nameField.getText(), ageField.getText());
-            refreshAllTabs();
+            if (isInteger(ageField.getText())) {
+                addStudent(nameField.getText(), ageField.getText());
+                refreshAllTabs();
+            } else {
+                JOptionPane.showMessageDialog(this, "Age must be an integer.", "Input Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private boolean isInteger(String input) {
+        try {
+            Integer.parseInt(input);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
@@ -136,8 +150,12 @@ public class StudentManagementSystem extends JFrame {
         if (result == JOptionPane.OK_OPTION) {
             Student selectedStudent = (Student) updateStudentComboBox.getSelectedItem();
             if (selectedStudent != null) {
-                updateStudent(selectedStudent, nameField.getText(), ageField.getText());
-                refreshAllTabs();
+                if (isInteger(ageField.getText())) {
+                    updateStudent(selectedStudent, nameField.getText(), ageField.getText());
+                    refreshAllTabs();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Age must be an integer.", "Input Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         }
     }
@@ -150,7 +168,7 @@ public class StudentManagementSystem extends JFrame {
         viewStudentsTable = new JTable(model);
 
         viewStudentsTable.getColumn("Delete").setCellRenderer(new ButtonRenderer());
-        viewStudentsTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox()));
+        viewStudentsTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox(), this));
 
         JScrollPane scrollPane = new JScrollPane(viewStudentsTable);
         panel.add(scrollPane, BorderLayout.CENTER);
@@ -231,7 +249,7 @@ public class StudentManagementSystem extends JFrame {
         viewCoursesTable = new JTable(model);
 
         viewCoursesTable.getColumn("Delete").setCellRenderer(new ButtonRenderer());
-        viewCoursesTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox()));
+        viewCoursesTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox(), this));
 
         JScrollPane scrollPane = new JScrollPane(viewCoursesTable);
         panel.add(scrollPane, BorderLayout.CENTER);
@@ -358,22 +376,24 @@ public class StudentManagementSystem extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
 
         JLabel studentLabel = new JLabel("Select Student:");
-        JComboBox<Student> studentComboBox = new JComboBox<>(students.toArray(new Student[0]));
+        studentComboBox = new JComboBox<>(students.toArray(new Student[0]));
         panel.add(studentLabel, BorderLayout.NORTH);
         panel.add(studentComboBox, BorderLayout.CENTER);
 
-        JTextArea enrolledCoursesArea = new JTextArea(10, 30);
-        enrolledCoursesArea.setEditable(false);
-        panel.add(new JScrollPane(enrolledCoursesArea), BorderLayout.SOUTH);
+        String[] columnNames = {"Course Name", "Grade", "Cancel Enrollment"};
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+        viewEnrolledCoursesTable = new JTable(model);
+
+        viewEnrolledCoursesTable.getColumn("Cancel Enrollment").setCellRenderer(new ButtonRenderer());
+        viewEnrolledCoursesTable.getColumn("Cancel Enrollment").setCellEditor(new ButtonEditor(new JCheckBox(), this));
+
+        JScrollPane scrollPane = new JScrollPane(viewEnrolledCoursesTable);
+        panel.add(scrollPane, BorderLayout.SOUTH);
 
         studentComboBox.addActionListener(e -> {
             Student selectedStudent = (Student) studentComboBox.getSelectedItem();
             if (selectedStudent != null) {
-                StringBuilder sb = new StringBuilder();
-                for (Course course : selectedStudent.getCourses()) {
-                    sb.append(course.getName()).append("\n");
-                }
-                enrolledCoursesArea.setText(sb.toString());
+                refreshViewEnrolledCoursesTable(selectedStudent);
             }
         });
 
@@ -407,10 +427,24 @@ public class StudentManagementSystem extends JFrame {
 
     private void enrollStudentInCourse(Course course, Student student) {
         if (student != null && course != null) {
-            student.addCourse(course);
-            JOptionPane.showMessageDialog(this, "Student enrolled successfully!");
+            if (!student.getCourses().contains(course)) {
+                student.addCourse(course);
+                JOptionPane.showMessageDialog(this, "Student enrolled successfully!");
+            } else {
+                JOptionPane.showMessageDialog(this, "Student is already enrolled in this course.", "Enrollment Error", JOptionPane.ERROR_MESSAGE);
+            }
         } else {
             JOptionPane.showMessageDialog(this, "Please select both a course and a student to enroll.");
+        }
+    }
+
+    private void cancelEnrollment(Student student, Course course) {
+        if (student != null && course != null) {
+            student.getCourses().remove(course);
+            JOptionPane.showMessageDialog(this, "Enrollment canceled successfully!");
+            refreshViewEnrolledCoursesTable(student);
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: Student or course not found.");
         }
     }
 
@@ -454,6 +488,9 @@ public class StudentManagementSystem extends JFrame {
         if (assignGradeStudentComboBox != null) {
             assignGradeStudentComboBox.setModel(new DefaultComboBoxModel<>(students.toArray(new Student[0])));
         }
+        if (studentComboBox != null) {
+            studentComboBox.setModel(new DefaultComboBoxModel<>(students.toArray(new Student[0])));
+        }
     }
 
     private void refreshViewStudentsTable() {
@@ -483,7 +520,24 @@ public class StudentManagementSystem extends JFrame {
         }
     }
 
+    private void refreshViewEnrolledCoursesTable(Student student) {
+        DefaultTableModel model = (DefaultTableModel) viewEnrolledCoursesTable.getModel();
+        model.setRowCount(0); // Clear existing data
+        for (Course course : student.getCourses()) {
+            Object[] row = {
+                    course.getName(),
+                    course.getGrade(),
+                    "Cancel Enrollment"
+            };
+            model.addRow(row);
+        }
+    }
+
     private void loadSampleData() {
+        students.add(new Student("Ahmed Elsawi", 20));
+        students.add(new Student("Marcellous Simeo", 22));
+        students.add(new Student("Sabrina Marilyn", 21));
+
         // Sample Courses
         courses.add(new Course("Mathematics"));
         courses.add(new Course("Physics"));
@@ -514,32 +568,36 @@ public class StudentManagementSystem extends JFrame {
 
     class ButtonEditor extends DefaultCellEditor {
         private String label;
-
-        public ButtonEditor(JCheckBox checkBox) {
+        private final StudentManagementSystem parent;
+    
+        public ButtonEditor(JCheckBox checkBox, StudentManagementSystem parent) {
             super(checkBox);
+            this.parent = parent;
         }
-
+    
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
             label = (value == null) ? "Delete" : value.toString();
             JButton button = new JButton(label);
-            button.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e) {
-                    if (table == viewStudentsTable) {
-                        deleteStudent(students.get(row));
-                    } else if (table == viewCoursesTable) {
-                        deleteCourse(courses.get(row));
-                    }
-                    fireEditingStopped(); // Notify the JTable that editing has stopped
-                    refreshAllTabs();
+            button.addActionListener(e -> {
+                if (table == parent.viewStudentsTable) {
+                    parent.deleteStudent(parent.students.get(row));
+                } else if (table == parent.viewCoursesTable) {
+                    parent.deleteCourse(parent.courses.get(row));
+                } else if (table == parent.viewEnrolledCoursesTable) {
+                    Student selectedStudent = (Student) parent.studentComboBox.getSelectedItem();
+                    parent.cancelEnrollment(selectedStudent, selectedStudent.getCourses().get(row));
                 }
+                fireEditingStopped(); // Notify the JTable that editing has stopped
+                parent.refreshAllTabs();
             });
             return button;
         }
-
+    
         @Override
         public Object getCellEditorValue() {
             return label;
         }
     }
+    
 }
