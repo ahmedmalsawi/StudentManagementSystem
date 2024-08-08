@@ -1,5 +1,7 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -10,159 +12,370 @@ public class StudentManagementSystem extends JFrame {
     private List<Student> students = new ArrayList<>();
     private List<Course> courses = new ArrayList<>();
 
+    private JComboBox<Student> assignGradeStudentComboBox;
+    private JTable viewStudentsTable;
+    private JTable viewCoursesTable;
+
     public StudentManagementSystem() {
         setTitle("Student Management System");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         initUI();
+        loadSampleData(); // Load some sample data
     }
 
     private void initUI() {
         JMenuBar menuBar = new JMenuBar();
 
-        JMenu studentMenu = new JMenu("Student");
-        JMenuItem addStudentItem = new JMenuItem("Add Student");
-        JMenuItem updateStudentItem = new JMenuItem("Update Student");
-        JMenuItem viewStudentItem = new JMenuItem("View Student Details");
+        // Student Management Menu
+        JMenu studentMenu = new JMenu("Student Management");
+        studentMenu.add(createMenuItem("Add Student", e -> showAddStudentDialog()));
+        studentMenu.add(createMenuItem("Update Student", e -> showUpdateStudentDialog()));
+        studentMenu.add(createMenuItem("View Students", e -> showViewStudentsTab()));
 
-        studentMenu.add(addStudentItem);
-        studentMenu.add(updateStudentItem);
-        studentMenu.add(viewStudentItem);
+        // Course Management Menu
+        JMenu courseMenu = new JMenu("Course Management");
+        courseMenu.add(createMenuItem("Add Course", e -> showAddCourseDialog()));
+        courseMenu.add(createMenuItem("Update Course", e -> showUpdateCourseDialog()));
+        courseMenu.add(createMenuItem("View Courses", e -> showViewCoursesTab()));
 
-        JMenu courseMenu = new JMenu("Course");
-        JMenuItem enrollItem = new JMenuItem("Enroll in Course");
-        JMenuItem gradeItem = new JMenuItem("Assign Grades");
-
-        courseMenu.add(enrollItem);
-        courseMenu.add(gradeItem);
+        // Enrollment Management Menu
+        JMenu enrollmentMenu = new JMenu("Enrollment Management");
+        enrollmentMenu.add(createMenuItem("Enroll in Course", e -> showEnrollInCourseDialog()));
+        enrollmentMenu.add(createMenuItem("Assign Grades", e -> showAssignGradesDialog()));
+        enrollmentMenu.add(createMenuItem("View Enrolled Courses", e -> showViewEnrolledCourses()));
 
         menuBar.add(studentMenu);
         menuBar.add(courseMenu);
+        menuBar.add(enrollmentMenu);
 
         setJMenuBar(menuBar);
 
-        addStudentItem.addActionListener(e -> showAddStudentForm());
-        updateStudentItem.addActionListener(e -> showUpdateStudentForm());
-        viewStudentItem.addActionListener(e -> showViewStudentDetails());
-        enrollItem.addActionListener(e -> showEnrollForm());
-        gradeItem.addActionListener(e -> showAssignGradeForm());
+        showViewStudentsTab(); // Default view
     }
 
-    private void showAddStudentForm() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    private JMenuItem createMenuItem(String title, ActionListener listener) {
+        JMenuItem menuItem = new JMenuItem(title);
+        menuItem.addActionListener(listener);
+        return menuItem;
+    }
+
+    private void showAddStudentDialog() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel nameLabel = new JLabel("Name:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(nameLabel, gbc);
 
         JTextField nameField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(nameField, gbc);
+
+        JLabel ageLabel = new JLabel("Age:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(ageLabel, gbc);
+
         JTextField ageField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        panel.add(ageField, gbc);
 
-        JButton submitButton = new JButton("Add Student");
-        submitButton.addActionListener(e -> addStudent(nameField.getText(), ageField.getText()));
-
-        panel.add(new JLabel("Name:"));
-        panel.add(nameField);
-        panel.add(new JLabel("Age:"));
-        panel.add(ageField);
-        panel.add(submitButton);
-
-        setContentPane(panel);
-        validate();
+        int result = JOptionPane.showConfirmDialog(null, panel, "Add Student", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            addStudent(nameField.getText(), ageField.getText());
+            refreshAllTabs();
+        }
     }
 
-    private void showUpdateStudentForm() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-
-        JComboBox<Student> studentComboBox = new JComboBox<>(students.toArray(new Student[0]));
-        JTextField nameField = new JTextField(20);
-        JTextField ageField = new JTextField(20);
-
-        JButton submitButton = new JButton("Update Student");
-        submitButton.addActionListener(e -> updateStudent((Student) studentComboBox.getSelectedItem(), nameField.getText(), ageField.getText()));
-
-        panel.add(new JLabel("Select Student:"));
-        panel.add(studentComboBox);
-        panel.add(new JLabel("Name:"));
-        panel.add(nameField);
-        panel.add(new JLabel("Age:"));
-        panel.add(ageField);
-        panel.add(submitButton);
-
-        setContentPane(panel);
-        validate();
-    }
-
-    private void showViewStudentDetails() {
-        JPanel panel = new JPanel();
-
-        String[] columnNames = {"ID", "Name", "Age"};
-        DefaultTableModel model = new DefaultTableModel(columnNames, 0);
-        JTable table = new JTable(model);
-
-        for (Student student : students) {
-            Object[] row = {student.getId(), student.getName(), student.getAge()};
-            model.addRow(row);
+    private void showUpdateStudentDialog() {
+        if (students.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No students available to update.");
+            return;
         }
 
-        JScrollPane scrollPane = new JScrollPane(table);
-        panel.add(scrollPane);
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel selectLabel = new JLabel("Select Student:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(selectLabel, gbc);
+
+        JComboBox<Student> updateStudentComboBox = new JComboBox<>(students.toArray(new Student[0]));
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(updateStudentComboBox, gbc);
+
+        JLabel nameLabel = new JLabel("Name:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(nameLabel, gbc);
+
+        JTextField nameField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        panel.add(nameField, gbc);
+
+        JLabel ageLabel = new JLabel("Age:");
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(ageLabel, gbc);
+
+        JTextField ageField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        panel.add(ageField, gbc);
+
+        int result = JOptionPane.showConfirmDialog(null, panel, "Update Student", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            Student selectedStudent = (Student) updateStudentComboBox.getSelectedItem();
+            if (selectedStudent != null) {
+                updateStudent(selectedStudent, nameField.getText(), ageField.getText());
+                refreshAllTabs();
+            }
+        }
+    }
+
+    private void showViewStudentsTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        String[] columnNames = {"ID", "Name", "Age", "Delete"};
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+        viewStudentsTable = new JTable(model);
+
+        viewStudentsTable.getColumn("Delete").setCellRenderer(new ButtonRenderer());
+        viewStudentsTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox()));
+
+        JScrollPane scrollPane = new JScrollPane(viewStudentsTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        refreshViewStudentsTable();
 
         setContentPane(panel);
         validate();
     }
 
-    private void showEnrollForm() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    private void showAddCourseDialog() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel nameLabel = new JLabel("Course Name:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(nameLabel, gbc);
+
+        JTextField nameField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(nameField, gbc);
+
+        int result = JOptionPane.showConfirmDialog(null, panel, "Add Course", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            addCourse(nameField.getText());
+            refreshAllTabs();
+        }
+    }
+
+    private void showUpdateCourseDialog() {
+        if (courses.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No courses available to update.");
+            return;
+        }
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel selectLabel = new JLabel("Select Course:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(selectLabel, gbc);
+
+        JComboBox<Course> updateCourseComboBox = new JComboBox<>(courses.toArray(new Course[0]));
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(updateCourseComboBox, gbc);
+
+        JLabel nameLabel = new JLabel("Course Name:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(nameLabel, gbc);
+
+        JTextField nameField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        panel.add(nameField, gbc);
+
+        int result = JOptionPane.showConfirmDialog(null, panel, "Update Course", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            Course selectedCourse = (Course) updateCourseComboBox.getSelectedItem();
+            if (selectedCourse != null) {
+                updateCourse(selectedCourse, nameField.getText());
+                refreshAllTabs();
+            }
+        }
+    }
+
+    private void showViewCoursesTab() {
+        JPanel panel = new JPanel(new BorderLayout());
+
+        String[] columnNames = {"ID", "Name", "Delete"};
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+        viewCoursesTable = new JTable(model);
+
+        viewCoursesTable.getColumn("Delete").setCellRenderer(new ButtonRenderer());
+        viewCoursesTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox()));
+
+        JScrollPane scrollPane = new JScrollPane(viewCoursesTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        refreshViewCoursesTable();
+
+        setContentPane(panel);
+        validate();
+    }
+
+    private void showEnrollInCourseDialog() {
+        if (students.isEmpty() || courses.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No students or courses available for enrollment.");
+            return;
+        }
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel courseLabel = new JLabel("Select Course:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(courseLabel, gbc);
 
         JComboBox<Course> courseComboBox = new JComboBox<>(courses.toArray(new Course[0]));
-        JTable studentTable = new JTable(new DefaultTableModel(new String[]{"ID", "Name"}, 0));
-        DefaultTableModel model = (DefaultTableModel) studentTable.getModel();
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(courseComboBox, gbc);
 
-        for (Student student : students) {
-            Object[] row = {student.getId(), student.getName()};
-            model.addRow(row);
-        }
+        JLabel studentLabel = new JLabel("Select Student:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(studentLabel, gbc);
+
+        JComboBox<Student> enrollStudentComboBox = new JComboBox<>(students.toArray(new Student[0]));
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        panel.add(enrollStudentComboBox, gbc);
 
         JButton enrollButton = new JButton("Enroll");
-        enrollButton.addActionListener(e -> enrollStudentInCourse((Course) courseComboBox.getSelectedItem(), studentTable.getSelectedRow()));
-
-        panel.add(new JLabel("Select Course:"));
-        panel.add(courseComboBox);
-        panel.add(new JScrollPane(studentTable));
-        panel.add(enrollButton);
+        enrollButton.addActionListener(e -> {
+            enrollStudentInCourse((Course) courseComboBox.getSelectedItem(), (Student) enrollStudentComboBox.getSelectedItem());
+            refreshAllTabs();
+        });
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        panel.add(enrollButton, gbc);
 
         setContentPane(panel);
         validate();
     }
 
-    private void showAssignGradeForm() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    private void showAssignGradesDialog() {
+        if (students.isEmpty() || courses.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No students or courses available for grade assignment.");
+            return;
+        }
 
-        JComboBox<Student> studentComboBox = new JComboBox<>(students.toArray(new Student[0]));
-        JTable courseTable = new JTable(new DefaultTableModel(new String[]{"ID", "Name", "Grade"}, 0));
-        DefaultTableModel model = (DefaultTableModel) courseTable.getModel();
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JButton assignButton = new JButton("Assign Grade");
-        JTextField gradeField = new JTextField(5);
+        JLabel studentLabel = new JLabel("Select Student:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(studentLabel, gbc);
 
-        studentComboBox.addActionListener(e -> {
-            model.setRowCount(0);
-            Student selectedStudent = (Student) studentComboBox.getSelectedItem();
-            for (Course course : selectedStudent.getCourses()) {
-                Object[] row = {course.getId(), course.getName(), course.getGrade()};
-                model.addRow(row);
+        assignGradeStudentComboBox = new JComboBox<>(students.toArray(new Student[0]));
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(assignGradeStudentComboBox, gbc);
+
+        JLabel courseLabel = new JLabel("Select Course:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(courseLabel, gbc);
+
+        JComboBox<Course> courseComboBox = new JComboBox<>();
+        assignGradeStudentComboBox.addActionListener(e -> {
+            courseComboBox.removeAllItems();
+            Student selectedStudent = (Student) assignGradeStudentComboBox.getSelectedItem();
+            if (selectedStudent != null) {
+                for (Course course : selectedStudent.getCourses()) {
+                    courseComboBox.addItem(course);
+                }
             }
         });
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        panel.add(courseComboBox, gbc);
 
-        assignButton.addActionListener(e -> assignGrade((Student) studentComboBox.getSelectedItem(), courseTable.getSelectedRow(), gradeField.getText()));
+        JLabel gradeLabel = new JLabel("Grade:");
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(gradeLabel, gbc);
 
-        panel.add(new JLabel("Select Student:"));
-        panel.add(studentComboBox);
-        panel.add(new JScrollPane(courseTable));
-        panel.add(new JLabel("Grade:"));
-        panel.add(gradeField);
-        panel.add(assignButton);
+        JTextField gradeField = new JTextField(5);
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        panel.add(gradeField, gbc);
+
+        JButton assignButton = new JButton("Assign Grade");
+        assignButton.addActionListener(e -> {
+            assignGrade((Student) assignGradeStudentComboBox.getSelectedItem(), (Course) courseComboBox.getSelectedItem(), gradeField.getText());
+            refreshAllTabs();
+        });
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        panel.add(assignButton, gbc);
+
+        setContentPane(panel);
+        validate();
+    }
+
+    private void showViewEnrolledCourses() {
+        if (students.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No students available to view enrollments.");
+            return;
+        }
+
+        JPanel panel = new JPanel(new BorderLayout());
+
+        JLabel studentLabel = new JLabel("Select Student:");
+        JComboBox<Student> studentComboBox = new JComboBox<>(students.toArray(new Student[0]));
+        panel.add(studentLabel, BorderLayout.NORTH);
+        panel.add(studentComboBox, BorderLayout.CENTER);
+
+        JTextArea enrolledCoursesArea = new JTextArea(10, 30);
+        enrolledCoursesArea.setEditable(false);
+        panel.add(new JScrollPane(enrolledCoursesArea), BorderLayout.SOUTH);
+
+        studentComboBox.addActionListener(e -> {
+            Student selectedStudent = (Student) studentComboBox.getSelectedItem();
+            if (selectedStudent != null) {
+                StringBuilder sb = new StringBuilder();
+                for (Course course : selectedStudent.getCourses()) {
+                    sb.append(course.getName()).append("\n");
+                }
+                enrolledCoursesArea.setText(sb.toString());
+            }
+        });
 
         setContentPane(panel);
         validate();
@@ -174,28 +387,107 @@ public class StudentManagementSystem extends JFrame {
     }
 
     private void updateStudent(Student student, String name, String age) {
-        student.setName(name);
-        student.setAge(Integer.parseInt(age));
-        JOptionPane.showMessageDialog(this, "Student updated successfully!");
+        if (student != null) {
+            student.setName(name);
+            student.setAge(Integer.parseInt(age));
+            JOptionPane.showMessageDialog(this, "Student updated successfully!");
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: Student not found.");
+        }
     }
 
-    private void enrollStudentInCourse(Course course, int studentIndex) {
-        if (studentIndex >= 0) {
-            Student student = students.get(studentIndex);
+    private void deleteStudent(Student student) {
+        if (student != null) {
+            students.remove(student);
+            JOptionPane.showMessageDialog(this, "Student deleted successfully!");
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: Student not found.");
+        }
+    }
+
+    private void enrollStudentInCourse(Course course, Student student) {
+        if (student != null && course != null) {
             student.addCourse(course);
             JOptionPane.showMessageDialog(this, "Student enrolled successfully!");
         } else {
-            JOptionPane.showMessageDialog(this, "Please select a student to enroll.");
+            JOptionPane.showMessageDialog(this, "Please select both a course and a student to enroll.");
         }
     }
 
-    private void assignGrade(Student student, int courseIndex, String grade) {
-        if (courseIndex >= 0) {
-            student.getCourses().get(courseIndex).setGrade(grade);
+    private void assignGrade(Student student, Course course, String grade) {
+        if (student != null && course != null) {
+            course.setGrade(grade);
             JOptionPane.showMessageDialog(this, "Grade assigned successfully!");
         } else {
-            JOptionPane.showMessageDialog(this, "Please select a course to assign a grade.");
+            JOptionPane.showMessageDialog(this, "Please select both a course and a student to assign a grade.");
         }
+    }
+
+    private void addCourse(String name) {
+        courses.add(new Course(name));
+        JOptionPane.showMessageDialog(this, "Course added successfully!");
+    }
+
+    private void updateCourse(Course course, String name) {
+        if (course != null) {
+            course.setName(name);
+            JOptionPane.showMessageDialog(this, "Course updated successfully!");
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: Course not found.");
+        }
+    }
+
+    private void deleteCourse(Course course) {
+        if (course != null) {
+            courses.remove(course);
+            JOptionPane.showMessageDialog(this, "Course deleted successfully!");
+        } else {
+            JOptionPane.showMessageDialog(this, "Error: Course not found.");
+        }
+    }
+
+    private void refreshAllTabs() {
+        refreshViewStudentsTable();
+        if (viewCoursesTable != null) {
+            refreshViewCoursesTable();
+        }
+        if (assignGradeStudentComboBox != null) {
+            assignGradeStudentComboBox.setModel(new DefaultComboBoxModel<>(students.toArray(new Student[0])));
+        }
+    }
+
+    private void refreshViewStudentsTable() {
+        DefaultTableModel model = (DefaultTableModel) viewStudentsTable.getModel();
+        model.setRowCount(0); // Clear existing data
+        for (Student student : students) {
+            Object[] row = {
+                    student.getId(),
+                    student.getName(),
+                    student.getAge(),
+                    "Delete"
+            };
+            model.addRow(row);
+        }
+    }
+
+    private void refreshViewCoursesTable() {
+        DefaultTableModel model = (DefaultTableModel) viewCoursesTable.getModel();
+        model.setRowCount(0); // Clear existing data
+        for (Course course : courses) {
+            Object[] row = {
+                    course.getId(),
+                    course.getName(),
+                    "Delete"
+            };
+            model.addRow(row);
+        }
+    }
+
+    private void loadSampleData() {
+        // Sample Courses
+        courses.add(new Course("Mathematics"));
+        courses.add(new Course("Physics"));
+        courses.add(new Course("Chemistry"));
     }
 
     public static void main(String[] args) {
@@ -203,5 +495,51 @@ public class StudentManagementSystem extends JFrame {
             StudentManagementSystem sms = new StudentManagementSystem();
             sms.setVisible(true);
         });
+    }
+
+    // Custom renderer and editor for JTable buttons
+
+    class ButtonRenderer extends JButton implements TableCellRenderer {
+
+        public ButtonRenderer() {
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            setText((value == null) ? "Delete" : value.toString());
+            return this;
+        }
+    }
+
+    class ButtonEditor extends DefaultCellEditor {
+        private String label;
+
+        public ButtonEditor(JCheckBox checkBox) {
+            super(checkBox);
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            label = (value == null) ? "Delete" : value.toString();
+            JButton button = new JButton(label);
+            button.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    if (table == viewStudentsTable) {
+                        deleteStudent(students.get(row));
+                    } else if (table == viewCoursesTable) {
+                        deleteCourse(courses.get(row));
+                    }
+                    fireEditingStopped(); // Notify the JTable that editing has stopped
+                    refreshAllTabs();
+                }
+            });
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            return label;
+        }
     }
 }
