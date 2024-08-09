@@ -1,50 +1,22 @@
-import java.util.ArrayList;
-import java.util.List;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.property.IntegerProperty;
 
 public class Student {
-    private static int idCounter = 0;
-    private int id;
-    private String name;
-    private int age;
-    private List<Course> courses;
+    private final StringProperty name = new SimpleStringProperty();
+    private final IntegerProperty age = new SimpleIntegerProperty();
 
     public Student(String name, int age) {
-        this.id = ++idCounter;
-        this.name = name;
-        this.age = age;
-        this.courses = new ArrayList<>();
+        this.name.set(name);
+        this.age.set(age);
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public String getName() {
+    public StringProperty nameProperty() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public int getAge() {
+    public IntegerProperty ageProperty() {
         return age;
-    }
-
-    public void setAge(int age) {
-        this.age = age;
-    }
-
-    public List<Course> getCourses() {
-        return courses;
-    }
-
-    public void addCourse(Course course) {
-        courses.add(course);
-    }
-
-    @Override
-    public String toString() {
-        return name;
     }
 }

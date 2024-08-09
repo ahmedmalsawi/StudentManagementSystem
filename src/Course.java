@@ -1,37 +1,14 @@
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
 public class Course {
-    private static int idCounter = 0;
-    private int id;
-    private String name;
-    private String grade;
+    private final StringProperty name = new SimpleStringProperty();
 
     public Course(String name) {
-        this.id = ++idCounter;
-        this.name = name;
-        this.grade = "";
+        this.name.set(name);
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getGrade() {
-        return grade;
-    }
-
-    public void setGrade(String grade) {
-        this.grade = grade;
-    }
-
-    @Override
-    public String toString() {
+    public StringProperty nameProperty() {
         return name;
     }
 }
