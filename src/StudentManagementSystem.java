@@ -1,3 +1,4 @@
+
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -498,10 +499,10 @@ public class StudentManagementSystem extends JFrame {
         model.setRowCount(0); // Clear existing data
         for (Student student : students) {
             Object[] row = {
-                    student.getId(),
-                    student.getName(),
-                    student.getAge(),
-                    "Delete"
+                student.getId(),
+                student.getName(),
+                student.getAge(),
+                "Delete"
             };
             model.addRow(row);
         }
@@ -512,9 +513,9 @@ public class StudentManagementSystem extends JFrame {
         model.setRowCount(0); // Clear existing data
         for (Course course : courses) {
             Object[] row = {
-                    course.getId(),
-                    course.getName(),
-                    "Delete"
+                course.getId(),
+                course.getName(),
+                "Delete"
             };
             model.addRow(row);
         }
@@ -525,9 +526,9 @@ public class StudentManagementSystem extends JFrame {
         model.setRowCount(0); // Clear existing data
         for (Course course : student.getCourses()) {
             Object[] row = {
-                    course.getName(),
-                    course.getGrade(),
-                    "Cancel Enrollment"
+                course.getName(),
+                course.getGrade(),
+                "Cancel Enrollment"
             };
             model.addRow(row);
         }
@@ -552,7 +553,6 @@ public class StudentManagementSystem extends JFrame {
     }
 
     // Custom renderer and editor for JTable buttons
-
     class ButtonRenderer extends JButton implements TableCellRenderer {
 
         public ButtonRenderer() {
@@ -567,37 +567,42 @@ public class StudentManagementSystem extends JFrame {
     }
 
     class ButtonEditor extends DefaultCellEditor {
+
         private String label;
         private final StudentManagementSystem parent;
-    
+
         public ButtonEditor(JCheckBox checkBox, StudentManagementSystem parent) {
             super(checkBox);
             this.parent = parent;
         }
-    
+
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
             label = (value == null) ? "Delete" : value.toString();
             JButton button = new JButton(label);
             button.addActionListener(e -> {
-                if (table == parent.viewStudentsTable) {
-                    parent.deleteStudent(parent.students.get(row));
-                } else if (table == parent.viewCoursesTable) {
-                    parent.deleteCourse(parent.courses.get(row));
-                } else if (table == parent.viewEnrolledCoursesTable) {
-                    Student selectedStudent = (Student) parent.studentComboBox.getSelectedItem();
-                    parent.cancelEnrollment(selectedStudent, selectedStudent.getCourses().get(row));
+                if (row >= 0 && row < table.getRowCount()) { // Ensure the row index is valid
+                    if (table == parent.viewStudentsTable) {
+                        parent.deleteStudent(parent.students.get(row));
+                    } else if (table == parent.viewCoursesTable) {
+                        parent.deleteCourse(parent.courses.get(row));
+                    } else if (table == parent.viewEnrolledCoursesTable) {
+                        Student selectedStudent = (Student) parent.studentComboBox.getSelectedItem();
+                        if (selectedStudent != null) {
+                            parent.cancelEnrollment(selectedStudent, selectedStudent.getCourses().get(row));
+                        }
+                    }
+                    fireEditingStopped(); // Notify the JTable that editing has stopped
+                    parent.refreshAllTabs();
                 }
-                fireEditingStopped(); // Notify the JTable that editing has stopped
-                parent.refreshAllTabs();
             });
             return button;
         }
-    
+
         @Override
         public Object getCellEditorValue() {
             return label;
         }
     }
-    
+
 }
